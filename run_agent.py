@@ -3585,6 +3585,12 @@ class AIAgent:
                         parent_session_id=self.session_id,
                         enabled_toolsets=["memory", "skills"],
                     )
+                    # Reuse the parent's frozen system-prompt snapshot so the
+                    # background fork keeps the same cache prefix contract and
+                    # does not rebuild a divergent prompt mid-session.
+                    _parent_cached_prompt = getattr(self, "_cached_system_prompt", None)
+                    if _parent_cached_prompt:
+                        review_agent._cached_system_prompt = _parent_cached_prompt
                     review_agent._memory_write_origin = "background_review"
                     review_agent._memory_write_context = "background_review"
                     review_agent._memory_store = self._memory_store

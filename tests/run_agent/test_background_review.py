@@ -190,3 +190,35 @@ def test_background_review_summary_is_attributed_to_self_improvement_loop(monkey
     assert captured_bg_callback[0].startswith("💾 Self-improvement review:"), (
         captured_bg_callback[0]
     )
+
+
+def test_background_review_reuses_parent_cached_system_prompt(monkeypatch):
+    observed = {}
+
+    class FakeReviewAgent:
+        def __init__(self, **kwargs):
+            self._cached_system_prompt = None
+            self._session_messages = []
+
+        def run_conversation(self, **kwargs):
+            observed["cached_prompt_during_run"] = self._cached_system_prompt
+
+        def shutdown_memory_provider(self):
+            pass
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(run_agent_module, "AIAgent", FakeReviewAgent)
+    monkeypatch.setattr(run_agent_module.threading, "Thread", ImmediateThread)
+
+    agent = _bare_agent()
+    agent._cached_system_prompt = "parent-cached-system-prompt"
+
+    AIAgent._spawn_background_review(
+        agent,
+        messages_snapshot=[{"role": "user", "content": "hello"}],
+        review_memory=True,
+    )
+
+    assert observed["cached_prompt_during_run"] == "parent-cached-system-prompt"
